@@ -7,8 +7,8 @@ on:
   push:
     tags:
     - 'v*'
-    #branches: 
-    #- master
+   # branches: 
+   # - master
   #schedule:
   #  - cron: 00 15 * * *
   watch:
@@ -21,12 +21,12 @@ jobs:
         arch: ["armv7", "aarch64", "x86_64"]
     runs-on: ubuntu-latest
     name: Build on ${{ matrix.arch }}
-    if: github.event.repository.owner.id == github.event.sender.id
+    if: github.event.repository.owner.id == github.event.sender.id || github.event_name == 'schedule'
     env:
       UPSTREAM_URL: ${{ secrets.UPSTREAM_URL }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Pull upstream changes
@@ -53,8 +53,8 @@ jobs:
         pacmanRepo: ${{ secrets.PACMAN_REPO }}
         deployPath: ${{ secrets.DEPLOY_PATH }}
         customRepos: ${{ secrets.CUSTOM_REPOS }}
-    - name: Send mail
-      uses: atomlong/send-mail-action@v2
+    - name: Send build result via mail
+      uses: atomlong/send-mail-action@v3.7.1
       if: ${{ steps.runcmd.outputs.message != '' }}
       with:
         server_address: ${{secrets.MAIL_HOST}}
@@ -62,7 +62,18 @@ jobs:
         username: ${{secrets.MAIL_USERNAME}}
         password: ${{secrets.MAIL_PASSWORD}}
         subject: Github Actions job of ${{github.repository}} result
-        body: ${{ steps.runcmd.outputs.message }}
+        html_body: ${{ steps.runcmd.outputs.message }}
         to: ${{secrets.MAIL_TO}}
         from: Github
-        content_type: text/html
+    - name: Send sync result via mail
+      uses: atomlong/send-mail-action@v3.7.1
+      if: ${{ steps.sync.outputs.error_message != '' && matrix.arch == 'armv7' }}
+      with:
+        server_address: ${{secrets.MAIL_HOST}}
+        server_port: ${{secrets.MAIL_PORT}}
+        username: ${{secrets.MAIL_USERNAME}}
+        password: ${{secrets.MAIL_PASSWORD}}
+        subject: Github Actions job of ${{github.repository}} result
+        html_body: ${{ steps.sync.outputs.error_message }}
+        to: ${{secrets.MAIL_TO}}
+        from: Github
